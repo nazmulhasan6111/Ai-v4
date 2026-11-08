@@ -1,0 +1,39 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip project
+        run: |
+          echo "Files in repo:"
+          find . -path ./.git -prune -o -type f -print | head -50
+          ZIP=$(find . -path ./.git -prune -o -iname '*.zip' -print | sort | tail -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: repo te kono .zip file nai. Zip upload koro."
+            exit 1
+          fi
+          echo "Using zip: $ZIP"
+          unzip -q -o "$ZIP" -d project
+          GRADLE=$(find project -name settings.gradle.kts | head -n 1)
+          DIR=$(dirname "$GRADLE")
+          echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
+          find "$DIR" -type f | sort
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+      - name: Build
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: gradle assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NH-Ai-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+         
